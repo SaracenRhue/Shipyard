@@ -43,7 +43,7 @@ run_cmd="docker run -d \
   -e SUDO_PASSWORD=$rootPassword \
   -p $port:8443 \
   -v $volumePath:/config \
-  --restart unless-stopped \
+  --restart $restartPolicy \
   lscr.io/linuxserver/code-server:latest"
 
 # Printing the command as a string.
