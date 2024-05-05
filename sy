@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# A function to display the help menu
+function show_help() {
+    echo "Shipyard (sy) - Container Management Tool"
+    echo "Usage: sy [command]"
+    echo "Commands:"
+    echo "  install <container-name>    Install a new container"
+    echo "  list                        List all installed containers"
+    echo "  update <container-name>     Update specified container"
+    echo "  remove <container-name>     Remove specified container"
+    echo "  help                        Show this help message"
+}
+
+declare -a run_commands  # Array to store Docker commands for reference
+
+function install_container() {
+    echo "Collecting Docker run commands..."
+
+    # First loop: Collect all Docker commands interactively
+    for container_script in "$@"; do
+        local script_path="containers/$container_script.sh"
+        if [ -f "$script_path" ]; then
+            echo "Processing $container_script interactively. Follow the prompts:"
+            
+            # Running the script interactively and directly in the current shell environment
+            source "$script_path"  # Use 'source' to ensure interactivity is maintained
+            
+            if [[ -n "$run_cmd" ]]; then  # Assuming 'docker_command' is set in the sourced script
+                run_commands+=("$run_cmd")  # Store the command for later execution
+                echo "Command collected for $container_script"
+            else
+                echo "No command output detected or command skipped."
+            fi
+        else
+            echo "Error: Container script not found for $container_script."
+        fi
+    done
+
+    echo "All Docker commands have been collected. Review before execution:"
+    for cmd in "${run_commands[@]}"; do
+        echo "$cmd"
+    done
+
+    # Confirm execution
+    echo "Do you want to execute all collected Docker commands? [y/n]"
+    read -r execute_confirm
+    if [[ "$execute_confirm" =~ ^[Yy]$ ]]; then
+        # Second loop: Execute all collected commands
+        echo "Executing all Docker commands..."
+        for cmd in "${run_commands[@]}"; do
+            eval "$cmd"
+        done
+        echo "All commands have been executed."
+    else
+        echo "Execution aborted by user."
+    fi
+}
+
+# Function to list containers
+function list_containers() {
+    echo "Listing all containers"
+    # Example: docker ps
+}
+
+# Function to update a container
+function update_container() {
+    echo "Updating container: $1"
+    # Example: docker pull $1
+}
+
+# Function to remove a container
+function remove_container() {
+    echo "Removing container: $1"
+    # Example: docker rm $1
+}
+
+# Check if no command is given
+if [ $# -eq 0 ]; then
+    show_help
+    exit 1
+fi
+
+# Main command switch
+case "$1" in
+    install|i)
+        if [ $# -eq 2 ]; then
+            install_container "$2"
+        else
+            echo "Error: Missing container name for install."
+            echo "Usage: sy install <container-name>"
+        fi
+        ;;
+    list)
+        list_containers
+        ;;
+    update)
+        if [ $# -eq 2 ]; then
+            update_container "$2"
+        else
+            echo "Error: Missing container name for update."
+            echo "Usage: sy update <container-name>"
+        fi
+        ;;
+    remove)
+        if [ $# -eq 2 ]; then
+            remove_container "$2"
+        else
+            echo "Error: Missing container name for remove."
+            echo "Usage: sy remove <container-name>"
+        fi
+        ;;
+    help)
+        show_help
+        ;;
+    *)
+        echo "Error: Unknown command '$1'"
+        show_help
+        ;;
+esac
