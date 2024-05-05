@@ -37,7 +37,7 @@ function install_container() {
         fi
     done
 
-    echo "All Docker commands have been collected. Review before execution:"
+    echo "Review run command(s):"
     for cmd in "${run_commands[@]}"; do
         echo "$cmd"
     done
