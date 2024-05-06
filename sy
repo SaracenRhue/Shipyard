@@ -12,7 +12,7 @@ function show_help() {
     echo "  help                        Show this help message"
 }
 
-declare -a run_commands  # Array to store Docker commands for reference
+declare -a run_commands # Array to store Docker commands for reference
 
 function install_container() {
     echo "Collecting Docker run commands..."
@@ -20,18 +20,56 @@ function install_container() {
     # First loop: Collect all Docker commands interactively
     for container_config in "$@"; do
         local config_path="containers/$container_config.conf"
+        # Initialize empty arrays for variable names and values
+        declare -a variable_names
+        declare -a variable_values
         if [ -f "$config_path" ]; then
             echo "Processing $container_config:"
-            
-            # Running the config interactively and directly in the current shell environment
-            source "$config_path"  # Use 'source' to ensure interactivity is maintained
-           # prompt user for all variables defined in the sourced config file
-           
-            
 
+            # Read each line from the configuration file
+            while IFS='=' read -r name value || [[ -n "$name" ]]; do
+                if [[ "$name" =~ ^[[:alpha:]] ]]; then
+                    # Remove potential spaces around name and value
+                    name=$(echo "$name" | xargs)
+                    value=$(echo "$value" | xargs)
 
-            if [[ -n "$run_cmd" ]]; then  # Assuming 'docker_command' is set in the sourced config
-                run_commands+=("$run_cmd")  # Store the command for later execution
+                    # Remove any inline comments
+                    value=${value%%#*}
+
+                    # Append the variable name and value to their respective arrays
+                    variable_names+=("$name")
+                    variable_values+=("$value")
+
+                fi
+            done <"$config_path"
+
+            # Interact with the user to potentially modify the values
+            for ((i = 1; i < ${#variable_names[@]}; i++)); do
+                name="${variable_names[i]}"
+                value="${variable_values[i]}"
+
+                # Prompt user to change the value if needed
+                echo "Set $name (current value: $value):"
+                read -r user_input
+
+                # If user input is not empty, update the value in the array
+                if [[ -n "$user_input" ]]; then
+                    variable_values[i]="$user_input"
+                fi
+            done
+
+            # Store the first value in run_cmd
+            run_cmd="${variable_values[0]}"
+            # Replace placeholders with actual values
+            for ((i = 0; i < ${#variable_names[@]}; i++)); do
+                placeholder="{{${variable_names[i]}}}"
+                value="${variable_values[i]}"
+                # Use bash string replacement to substitute the placeholder with the actual value
+                run_cmd="${run_cmd//$placeholder/$value}"
+            done
+
+            if [[ -n "$run_cmd" ]]; then   # Assuming 'docker_command' is set in the sourced config
+                run_commands+=("$run_cmd") # Store the command for later execution
                 echo "Command collected for $container_config"
             else
                 echo "No command output detected or command skipped."
@@ -53,6 +91,7 @@ function install_container() {
         # Second loop: Execute all collected commands
         echo "Executing all Docker commands..."
         for cmd in "${run_commands[@]}"; do
+            echo "Executing: $cmd"
             eval "$cmd"
         done
         echo "All commands have been executed."
@@ -79,6 +118,10 @@ function remove_container() {
     # Example: docker rm $1
 }
 
+# echo "$1"
+# echo "$2"
+# echo "$3"
+
 # Check if no command is given
 if [ $# -eq 0 ]; then
     show_help
@@ -87,38 +130,38 @@ fi
 
 # Main command switch
 case "$1" in
-    install|i)
-        if [ $# -eq 2 ]; then
-            install_container "$2"
-        else
-            echo "Error: Missing container name for install."
-            echo "Usage: sy install <container-name>"
-        fi
-        ;;
-    list)
-        list_containers
-        ;;
-    update)
-        if [ $# -eq 2 ]; then
-            update_container "$2"
-        else
-            echo "Error: Missing container name for update."
-            echo "Usage: sy update <container-name>"
-        fi
-        ;;
-    remove)
-        if [ $# -eq 2 ]; then
-            remove_container "$2"
-        else
-            echo "Error: Missing container name for remove."
-            echo "Usage: sy remove <container-name>"
-        fi
-        ;;
-    help)
-        show_help
-        ;;
-    *)
-        echo "Error: Unknown command '$1'"
-        show_help
-        ;;
+install | i)
+    if [ $# -ge 2 ]; then
+        install_container "${@:2}"
+    else
+        echo "Error: Missing container name for install."
+        echo "Usage: sy install <container-name>"
+    fi
+    ;;
+list)
+    list_containers
+    ;;
+update)
+    if [ $# -eq 2 ]; then
+        update_container "$2"
+    else
+        echo "Error: Missing container name for update."
+        echo "Usage: sy update <container-name>"
+    fi
+    ;;
+remove)
+    if [ $# -eq 2 ]; then
+        remove_container "$2"
+    else
+        echo "Error: Missing container name for remove."
+        echo "Usage: sy remove <container-name>"
+    fi
+    ;;
+help)
+    show_help
+    ;;
+*)
+    echo "Error: Unknown command '$1'"
+    show_help
+    ;;
 esac
