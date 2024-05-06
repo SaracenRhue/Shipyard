@@ -18,22 +18,26 @@ function install_container() {
     echo "Collecting Docker run commands..."
 
     # First loop: Collect all Docker commands interactively
-    for container_script in "$@"; do
-        local script_path="containers/$container_script.sh"
-        if [ -f "$script_path" ]; then
-            echo "Processing $container_script interactively. Follow the prompts:"
+    for container_config in "$@"; do
+        local config_path="containers/$container_config.conf"
+        if [ -f "$config_path" ]; then
+            echo "Processing $container_config:"
             
-            # Running the script interactively and directly in the current shell environment
-            source "$script_path"  # Use 'source' to ensure interactivity is maintained
+            # Running the config interactively and directly in the current shell environment
+            source "$config_path"  # Use 'source' to ensure interactivity is maintained
+           # prompt user for all variables defined in the sourced config file
+           
             
-            if [[ -n "$run_cmd" ]]; then  # Assuming 'docker_command' is set in the sourced script
+
+
+            if [[ -n "$run_cmd" ]]; then  # Assuming 'docker_command' is set in the sourced config
                 run_commands+=("$run_cmd")  # Store the command for later execution
-                echo "Command collected for $container_script"
+                echo "Command collected for $container_config"
             else
                 echo "No command output detected or command skipped."
             fi
         else
-            echo "Error: Container script not found for $container_script."
+            echo "Error: Container config not found for $container_script."
         fi
     done
 
