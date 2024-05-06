@@ -19,29 +19,28 @@ function install_container() {
 
     # First loop: Collect all Docker commands interactively
     for container_config in "$@"; do
-        local config_path="containers/$container_config.conf"
+        local url="https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/containers/$container_config.conf"
         # Initialize empty arrays for variable names and values
         declare -a variable_names
         declare -a variable_values
-        if [ -f "$config_path" ]; then
-            echo "Processing $container_config:"
 
-            # Read each line from the configuration file
+        # Use curl to fetch the configuration file content
+        if curl --output /dev/null --silent --head --fail "$url"; then
+            echo "Processing $container_config:"
+            
+            # Fetch and process the configuration content directly
             while IFS='=' read -r name value || [[ -n "$name" ]]; do
                 if [[ "$name" =~ ^[[:alpha:]] ]]; then
-                    # Remove potential spaces around name and value
-                    name=$(echo "$name" | xargs)
-                    value=$(echo "$value" | xargs)
-
-                    # Remove any inline comments
-                    value=${value%%#*}
+                    name=$(echo "$name" | xargs)  # Remove potential spaces around name
+                    value=$(echo "$value" | xargs)  # Remove spaces around value
+                    value=${value%%#*}  # Remove inline comments
 
                     # Append the variable name and value to their respective arrays
                     variable_names+=("$name")
                     variable_values+=("$value")
-
                 fi
-            done <"$config_path"
+            done < <(curl -s "$url")
+
 
             # Interact with the user to potentially modify the values
             for ((i = 1; i < ${#variable_names[@]}; i++)); do
