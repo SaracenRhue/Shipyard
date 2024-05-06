@@ -21,8 +21,8 @@ function install_container() {
     for container_config in "$@"; do
         local url="https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/containers/$container_config.conf"
         # Initialize empty arrays for variable names and values
-        declare -a variable_names
-        declare -a variable_values
+        declare -a variable_names=()
+        declare -a variable_values=()
 
         # Use curl to fetch the configuration file content
         if curl --output /dev/null --silent --head --fail "$url"; then
