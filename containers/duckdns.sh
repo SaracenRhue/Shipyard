@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Configuring Code Server container..."
+echo "Configuring DuckDNS container..."
 
 # Set defaults
 default_token="YOUR_DUCKDNS_TOKEN"
