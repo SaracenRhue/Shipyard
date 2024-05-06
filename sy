@@ -117,10 +117,6 @@ function remove_container() {
     # Example: docker rm $1
 }
 
-# echo "$1"
-# echo "$2"
-# echo "$3"
-
 # Check if no command is given
 if [ $# -eq 0 ]; then
     show_help
