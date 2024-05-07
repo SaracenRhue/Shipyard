@@ -39,10 +39,9 @@ for xml_file in xml_files:
 
     for v in variables:
         if ' ' in v['value']:
-            v['value'] = "'"+v["value"]+"'"
-            v['value'] = '"'+v["value"]+'"'
+            v['value'] = '"'+"'"+v["value"]+"'"+'"'
         if v['value'] == '':
-            v['value'] = '""'
+            v['value'] = "'"+"''"+"'"
         if v["target"] != 'UMASK' and v["target"] != 'PUID' and v["target"] != 'PGID':
             file_content += f'{v["target"]}={v["value"]}\n'
     for v in volumes:
