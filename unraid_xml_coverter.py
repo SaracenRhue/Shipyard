@@ -26,7 +26,7 @@ for xml_file in xml_files:
             run_cmd += f'-e {variable["target"]}={{{{{variable["target"]}}}}} '
         else:
             run_cmd += f'-e {variable["target"]}={variable["value"]} '
-    file_content = f'{run_cmd} {repo}"\n'
+    file_content = f'{run_cmd}{repo}"\n'
 
 
 
