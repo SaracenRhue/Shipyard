@@ -49,5 +49,6 @@ for xml_file in xml_files:
             v['value'] = f'/appdata/{name}'
         file_content += f'{v["name"]}={v["value"]}\n'
 
+    file_content = file_content.replace(':_/', '_')
     with open(f'{config_dir}/{name.lower()}.conf', 'w') as f:
         f.write(file_content)
