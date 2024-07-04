@@ -1,6 +1,93 @@
 #!/bin/bash
 
-# A function to display the help menu
+# Global variables
+declare -a run_commands # Array to store Docker commands for reference
+
+# Main function to handle command routing
+main() {
+    if [ $# -eq 0 ]; then
+        show_help
+        exit 1
+    fi
+
+    case "$1" in
+        install | i)
+            if [ $# -ge 2 ]; then
+                install_container "${@:2}"
+            else
+                echo "Error: Missing container name for install."
+                echo "Usage: sy install <container-name>"
+            fi
+            ;;
+        list | l)
+            list_containers
+            ;;
+        search | s)
+            if [ $# -eq 2 ]; then
+                search_container "$2"
+            else
+                echo "Error: Missing keyword for search."
+                echo "Usage: sy search <keyword>"
+            fi
+            ;;
+        update | u)
+            if [ $# -eq 2 ]; then
+                update_container "$2"
+            else
+                echo "Error: Missing container name for update."
+                echo "Usage: sy update <container-name> or sy update -a|--all"
+            fi
+            ;;
+        remove | rm)
+            if [ $# -eq 2 ]; then
+                remove_container "$2"
+            else
+                echo "Error: Missing container name for remove."
+                echo "Usage: sy remove <container-name>"
+            fi
+            ;;
+        log)
+            container_logs "$2"
+            ;;
+        console | ssh)
+            access_console "$2"
+            ;;
+        stats)
+            if [ $# -eq 2 ]; then
+                show_container_stats "$2"
+            else
+                show_container_stats
+            fi
+            ;;
+        backup)
+            backup_container_data
+            ;;
+        clean)
+            cleanup_docker
+            ;;
+        rollback)
+            if [ $# -eq 2 ]; then
+                rollback_container "$2"
+            else
+                echo "Error: Missing container name for rollback."
+                echo "Usage: sy rollback <container-name>"
+            fi
+            ;;
+        create-template)
+            create_template
+            ;;
+        help)
+            show_help
+            ;;
+        *)
+            echo "Error: Unknown command '$1'"
+            show_help
+            ;;
+    esac
+}
+
+# Helper Functions
+
 function show_help() {
     echo "Shipyard (sy) - Container Management Tool"
     echo "Usage: sy [command]"
@@ -21,63 +108,48 @@ function show_help() {
     echo "  help                        Show this help message"
 }
 
-declare -a run_commands # Array to store Docker commands for reference
+# Core Functions
 
 function install_container() {
     echo "Collecting Docker run commands..."
 
-    # First loop: Collect all Docker commands interactively
     for container_config in "$@"; do
         local url="https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/containers/$container_config.conf"
-        # Initialize empty arrays for variable names and values
         declare -a variable_names=()
         declare -a variable_values=()
 
-        # Use curl to fetch the configuration file content
         if curl --output /dev/null --silent --head --fail "$url"; then
             echo "Processing $container_config:"
             
-            # Fetch and process the configuration content directly
             while IFS='=' read -r name value || [[ -n "$name" ]]; do
                 if [[ "$name" =~ ^[[:alpha:]] ]]; then
-                    name=$(echo "$name" | xargs)  # Remove potential spaces around name
-                    value=$(echo "$value" | xargs)  # Remove spaces around value
-                    value=${value%%#*}  # Remove inline comments
-
-                    # Append the variable name and value to their respective arrays
+                    name=$(echo "$name" | xargs)
+                    value=$(echo "$value" | xargs)
+                    value=${value%%#*}
                     variable_names+=("$name")
                     variable_values+=("$value")
                 fi
             done < <(curl -s "$url")
 
-
-            # Interact with the user to potentially modify the values
             for ((i = 1; i < ${#variable_names[@]}; i++)); do
                 name="${variable_names[i]}"
                 value="${variable_values[i]}"
-
-                # Prompt user to change the value if needed
                 echo "Set $name (current value: $value):"
                 read -r user_input
-
-                # If user input is not empty, update the value in the array
                 if [[ -n "$user_input" ]]; then
                     variable_values[i]="$user_input"
                 fi
             done
 
-            # Store the first value in run_cmd
             run_cmd="${variable_values[0]}"
-            # Replace placeholders with actual values
             for ((i = 0; i < ${#variable_names[@]}; i++)); do
                 placeholder="{{${variable_names[i]}}}"
                 value="${variable_values[i]}"
-                # Use bash string replacement to substitute the placeholder with the actual value
                 run_cmd="${run_cmd//$placeholder/$value}"
             done
 
-            if [[ -n "$run_cmd" ]]; then   # Assuming 'docker_command' is set in the sourced config
-                run_commands+=("$run_cmd") # Store the command for later execution
+            if [[ -n "$run_cmd" ]]; then
+                run_commands+=("$run_cmd")
                 echo "Command collected for $container_config"
             else
                 echo "No command output detected or command skipped."
@@ -92,11 +164,9 @@ function install_container() {
         echo "$cmd"
     done
 
-    # Confirm execution
     echo "Do you want to execute all collected Docker commands? [y/n]"
     read -r execute_confirm
     if [[ "$execute_confirm" =~ ^[Yy]$ ]]; then
-        # Second loop: Execute all collected commands
         echo "Executing all Docker commands..."
         for cmd in "${run_commands[@]}"; do
             echo "Executing: $cmd"
@@ -108,20 +178,15 @@ function install_container() {
     fi
 }
 
-# Function to list containers
 function list_containers() {
     local base_url="https://api.github.com/repos/SaracenRhue/Shipyard/contents/containers"
-
-    # Fetch the list of container configuration files from the GitHub repository
     response=$(curl -s "$base_url")
 
-    # Check if the response is empty or not
     if [ -z "$response" ]; then
         echo "Error: Unable to fetch the list of containers."
         return 1
     fi
 
-    # Parse and display the list of containers
     echo "Available containers for installation:"
     echo "$response" | grep '"name"' | sed -E 's/.*"name": "(.*)\.conf".*/\1/' | sort
 }
@@ -129,76 +194,53 @@ function list_containers() {
 function search_container() {
     local keyword=$1
     local base_url="https://api.github.com/repos/SaracenRhue/Shipyard/contents/containers"
-
-    # Fetch the list of container configuration files from the GitHub repository
     response=$(curl -s "$base_url")
 
-    # Check if the response is empty or not
     if [ -z "$response" ]; then
         echo "Error: Unable to fetch the list of containers."
         return 1
     fi
 
-    # Parse and display the list of containers that match the keyword
     echo "Search results for '$keyword':"
     echo "$response" | grep '"name"' | sed -E 's/.*"name": "(.*)\.conf".*/\1/' | grep -i "$keyword" | sort
 
-    # Check if there are any results
     if [ -z "$(echo "$response" | grep '"name"' | sed -E 's/.*"name": "(.*)\.conf".*/\1/' | grep -i "$keyword")" ]; then
         echo "No containers found matching '$keyword'."
     fi
 }
 
-# Function to update a container
 function update_container() {
     local CONTAINER_NAME=$1
 
-    # Function to update a specific Docker container
     function update_specific_container() {
         local CONTAINER_NAME=$1
-
-        # Get the image name and tag from the existing container
         IMAGE_NAME=$(docker inspect --format='{{.Config.Image}}' "$CONTAINER_NAME")
         if [ -z "$IMAGE_NAME" ]; then
             echo "Error: Could not find container with name $CONTAINER_NAME"
             return 1
         fi
 
-        # Pull the latest image
         echo "Pulling the latest image: $IMAGE_NAME"
         docker pull "$IMAGE_NAME"
-
-        # Stop the running container
         echo "Stopping the container: $CONTAINER_NAME"
         docker stop "$CONTAINER_NAME"
-
-        # Remove the old container
         echo "Removing the container: $CONTAINER_NAME"
         docker rm "$CONTAINER_NAME"
-
-        # Start a new container with the updated image
         echo "Starting a new container: $CONTAINER_NAME with image $IMAGE_NAME"
         docker run -d --name "$CONTAINER_NAME" "$IMAGE_NAME"
-
-        # Verify the update
         echo "Verifying the update..."
         docker ps -f "name=$CONTAINER_NAME"
-
         echo "Update completed for container: $CONTAINER_NAME"
     }
 
-    # Function to update all Docker containers
     function update_all_containers() {
-        # Get the list of all running containers
         CONTAINER_NAMES=$(docker ps --format '{{.Names}}')
-
         for CONTAINER_NAME in $CONTAINER_NAMES; do
             echo "Updating container: $CONTAINER_NAME"
             update_specific_container "$CONTAINER_NAME"
         done
     }
 
-    # Check if the user wants to update all containers
     if [ "$CONTAINER_NAME" == "-a" ] || [ "$CONTAINER_NAME" == "--all" ]; then
         update_all_containers
     else
@@ -206,13 +248,11 @@ function update_container() {
     fi
 }
 
-# Function to remove a container
 function remove_container() {
     echo "Removing container: $1"
     docker rm -f "$1"
 }
 
-# Function to fetch and display the logs of a specified container
 function container_logs() {
     if [ -n "$1" ]; then
         docker logs "$1"
@@ -222,7 +262,6 @@ function container_logs() {
     fi
 }
 
-# Function to access the console of a specified container
 function access_console() {
     if [ -n "$1" ]; then
         docker exec -it "$1" /bin/bash
@@ -236,7 +275,23 @@ function access_console() {
     fi
 }
 
-# Function to backup container data
+function show_container_stats() {
+    local container_name="$1"
+    
+    if [ -z "$container_name" ]; then
+        echo "Showing stats for all running containers:"
+        docker stats --no-stream
+    else
+        if docker ps -q -f name="$container_name" | grep -q .; then
+            echo "Showing stats for container: $container_name"
+            docker stats --no-stream "$container_name"
+        else
+            echo "Error: Container '$container_name' not found or not running."
+            return 1
+        fi
+    fi
+}
+
 function backup_container_data() {
     read -rp "Enter the appdata path to backup: " appdata_path
     read -rp "Enter the path where the backup should be saved: " backup_path
@@ -255,59 +310,26 @@ function backup_container_data() {
     fi
 }
 
-# Function to display resource usage statistics for containers
-function show_container_stats() {
-    local container_name="$1"
-    
-    # Check if a container name was provided
-    if [ -z "$container_name" ]; then
-        echo "Showing stats for all running containers:"
-        docker stats --no-stream
-    else
-        # Check if the specified container exists and is running
-        if docker ps -q -f name="$container_name" | grep -q .; then
-            echo "Showing stats for container: $container_name"
-            docker stats --no-stream "$container_name"
-        else
-            echo "Error: Container '$container_name' not found or not running."
-            return 1
-        fi
-    fi
-}
-
 function cleanup_docker() {
     echo "Starting Docker cleanup..."
-
-    # Remove all stopped containers
     echo "Removing stopped containers..."
     docker container prune -f
-
-    # Remove unused images
     echo "Removing unused images..."
     docker image prune -a -f
-
-    # Remove dangling volumes
     echo "Removing dangling volumes..."
     docker volume prune -f
-
-    # Remove unused networks
     echo "Removing unused networks..."
     docker network prune -f
-
-    # Remove exited containers and their volumes
     echo "Removing exited containers and their volumes..."
     docker rm -v $(docker ps -a -q -f status=exited) 2>/dev/null
 
-    # Prompt for appdata path
     read -p "Enter the path to your appdata directory: " APPDATA_PATH
 
-    # Verify the path exists
     if [ ! -d "$APPDATA_PATH" ]; then
         echo "Error: The specified appdata path does not exist."
         return 1
     fi
 
-    # Clean up appdata directory
     echo "Cleaning up appdata directory..."
     for dir in "$APPDATA_PATH"/*; do
         if [ -d "$dir" ]; then
@@ -328,36 +350,28 @@ function cleanup_docker() {
     echo "Docker and appdata cleanup completed."
 }
 
-# Function to rollback a container to its previous version
 function rollback_container() {
     local container_name="$1"
 
-    # Check if container name is provided
     if [ -z "$container_name" ]; then
         echo "Error: Container name is required."
         echo "Usage: sy rollback <container-name>"
         return 1
     fi
 
-    # Check if the container exists
     if ! docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
         echo "Error: Container '$container_name' does not exist."
         return 1
     fi
 
-    # Get current image of the container
     current_image=$(docker inspect --format='{{.Config.Image}}' "$container_name")
-
-    # Get the list of images for this container, sorted by creation date
     image_history=$(docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.CreatedAt}}' | grep "${current_image%%:*}" | sort -k3,4 -r)
 
-    # Check if there's a previous version
     if [ $(echo "$image_history" | wc -l) -lt 2 ]; then
         echo "Error: No previous version found for '$container_name'."
         return 1
     fi
 
-    # Get the previous image
     previous_image=$(echo "$image_history" | sed -n 2p | awk '{print $2}')
 
     echo "Current image: $current_image"
@@ -367,46 +381,31 @@ function rollback_container() {
 
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
         echo "Rolling back '$container_name'..."
-
-        # Stop the current container
         docker stop "$container_name"
-
-        # Remove the current container
         docker rm "$container_name"
-
-        # Get the current container's run command
         run_cmd=$(docker inspect --format='{{.Config.Entrypoint}} {{.Config.Cmd}}' "$container_name" | sed 's/^\[//;s/\]$//')
-
-        # Run a new container with the previous image, using the same name and run command
         docker run -d --name "$container_name" $run_cmd "$previous_image"
-
         echo "Rollback completed. '$container_name' is now running with image: $previous_image"
     else
         echo "Rollback cancelled."
     fi
 }
 
-# Function to create a template config file from a Docker run command
 function create_template() {
     echo "Enter the full Docker run command:"
     read -r docker_command
 
-    # Extract the image name
     image_name=$(echo "$docker_command" | grep -oP '(?<=docker run .*? )\S+$')
-
-    # Generate a default name based on the image
     default_name=$(echo "$image_name" | cut -d/ -f2- | cut -d: -f1)
 
     echo "Enter a name for this template (default: $default_name):"
     read -r template_name
     template_name=${template_name:-$default_name}
 
-    # Create the template file
     template_file="${template_name}.conf"
 
     echo "COMMAND=\"$docker_command\"" > "$template_file"
 
-    # Extract and process options
     options=$(echo "$docker_command" | grep -oP '(?<= -)\w+(?= |$)|\w+=\S+')
     
     for option in $options; do
@@ -416,7 +415,6 @@ function create_template() {
                 host_port=$(echo "$port_mapping" | cut -d: -f1)
                 container_port=$(echo "$port_mapping" | cut -d: -f2-)
                 echo "${container_port%/*}=$host_port" >> "$template_file"
-                # Replace the port in COMMAND with a placeholder
                 sed -i "s|-p $port_mapping|-p {{${container_port%/*}}}:$container_port|g" "$template_file"
                 ;;
             v=*|volume=*)
@@ -425,7 +423,6 @@ function create_template() {
                 container_path=$(echo "$volume" | cut -d: -f2-)
                 variable_name=$(echo "$container_path" | tr '/' '_' | tr '[:lower:]' '[:upper:]')
                 echo "${variable_name}=$host_path" >> "$template_file"
-                # Replace the volume in COMMAND with a placeholder
                 sed -i "s|-v $volume|-v {{$variable_name}}:$container_path|g" "$template_file"
                 ;;
             e=*|env=*)
@@ -433,7 +430,6 @@ function create_template() {
                 env_name=$(echo "$env" | cut -d= -f1)
                 env_value=$(echo "$env" | cut -d= -f2-)
                 echo "${env_name}=$env_value" >> "$template_file"
-                # Replace the environment variable in COMMAND with a placeholder
                 sed -i "s|-e $env|-e $env_name={{$env_name}}|g" "$template_file"
                 ;;
         esac
@@ -444,84 +440,5 @@ function create_template() {
     cat "$template_file"
 }
 
-# Check if no command is given
-if [ $# -eq 0 ]; then
-    show_help
-    exit 1
-fi
-
-# Main command switch
-case "$1" in
-install | i)
-    if [ $# -ge 2 ]; then
-        install_container "${@:2}"
-    else
-        echo "Error: Missing container name for install."
-        echo "Usage: sy install <container-name>"
-    fi
-    ;;
-list | l)
-    list_containers
-    ;;
-search | s)
-    if [ $# -eq 2 ]; then
-        search_container "$2"
-    else
-        echo "Error: Missing keyword for search."
-        echo "Usage: sy search <keyword>"
-    fi
-    ;;
-update | u)
-    if [ $# -eq 2 ]; then
-        update_container "$2"
-    else
-        echo "Error: Missing container name for update."
-        echo "Usage: sy update <container-name> or sy update -a|--all"
-    fi
-    ;;
-remove | rm)
-    if [ $# -eq 2 ]; then
-        remove_container "$2"
-    else
-        echo "Error: Missing container name for remove."
-        echo "Usage: sy remove <container-name>"
-    fi
-    ;;
-log)
-    container_logs "$2"
-    ;;
-console | ssh)
-    access_console "$2"
-    ;;
-stats)
-    if [ $# -eq 2 ]; then
-        show_container_stats "$2"
-    else
-        show_container_stats
-    fi
-    ;;
-backup)
-    backup_container_data
-    ;;
-clean)
-    cleanup_docker
-    ;;
-rollback)
-    if [ $# -eq 2 ]; then
-        rollback_container "$2"
-    else
-        echo "Error: Missing container name for rollback."
-        echo "Usage: sy rollback <container-name>"
-    fi
-    ;;
-create-template)
-    create_template
-    ;;
-help)
-    show_help
-    ;;
-*)
-    echo "Error: Unknown command '$1'"
-    show_help
-    ;;
-esac
+# Execute the main function
+main "$@"
