@@ -17,6 +17,7 @@ function show_help() {
     echo "  rollback <container-name>   Rollback a container to its previous version"
     echo "  clean                       Clean up Docker resources and appdata directories"
     echo "  backup                      Backup container data"
+    echo "  create-template             Create a new container template from a Docker run command"
     echo "  help                        Show this help message"
 }
 
@@ -385,6 +386,64 @@ function rollback_container() {
     fi
 }
 
+# Function to create a template config file from a Docker run command
+function create_template() {
+    echo "Enter the full Docker run command:"
+    read -r docker_command
+
+    # Extract the image name
+    image_name=$(echo "$docker_command" | grep -oP '(?<=docker run .*? )\S+$')
+
+    # Generate a default name based on the image
+    default_name=$(echo "$image_name" | cut -d/ -f2- | cut -d: -f1)
+
+    echo "Enter a name for this template (default: $default_name):"
+    read -r template_name
+    template_name=${template_name:-$default_name}
+
+    # Create the template file
+    template_file="${template_name}.conf"
+
+    echo "COMMAND=\"$docker_command\"" > "$template_file"
+
+    # Extract and process options
+    options=$(echo "$docker_command" | grep -oP '(?<= -)\w+(?= |$)|\w+=\S+')
+    
+    for option in $options; do
+        case $option in
+            p=*|publish=*)
+                port_mapping=${option#*=}
+                host_port=$(echo "$port_mapping" | cut -d: -f1)
+                container_port=$(echo "$port_mapping" | cut -d: -f2-)
+                echo "${container_port%/*}=$host_port" >> "$template_file"
+                # Replace the port in COMMAND with a placeholder
+                sed -i "s|-p $port_mapping|-p {{${container_port%/*}}}:$container_port|g" "$template_file"
+                ;;
+            v=*|volume=*)
+                volume=${option#*=}
+                host_path=$(echo "$volume" | cut -d: -f1)
+                container_path=$(echo "$volume" | cut -d: -f2-)
+                variable_name=$(echo "$container_path" | tr '/' '_' | tr '[:lower:]' '[:upper:]')
+                echo "${variable_name}=$host_path" >> "$template_file"
+                # Replace the volume in COMMAND with a placeholder
+                sed -i "s|-v $volume|-v {{$variable_name}}:$container_path|g" "$template_file"
+                ;;
+            e=*|env=*)
+                env=${option#*=}
+                env_name=$(echo "$env" | cut -d= -f1)
+                env_value=$(echo "$env" | cut -d= -f2-)
+                echo "${env_name}=$env_value" >> "$template_file"
+                # Replace the environment variable in COMMAND with a placeholder
+                sed -i "s|-e $env|-e $env_name={{$env_name}}|g" "$template_file"
+                ;;
+        esac
+    done
+
+    echo "Template file created: $template_file"
+    echo "Content of $template_file:"
+    cat "$template_file"
+}
+
 # Check if no command is given
 if [ $# -eq 0 ]; then
     show_help
@@ -454,6 +513,9 @@ rollback)
         echo "Error: Missing container name for rollback."
         echo "Usage: sy rollback <container-name>"
     fi
+    ;;
+create-template)
+    create_template
     ;;
 help)
     show_help
