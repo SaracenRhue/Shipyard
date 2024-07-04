@@ -13,6 +13,7 @@ function show_help() {
     echo "  remove <container-name>     Remove specified container"
     echo "  log <container-name>        Display the logs of a specified container"
     echo "  ssh <container-name>        access a containers console"
+    echo "  backup                      Backup container data"
     echo "  help                        Show this help message"
 }
 
@@ -231,6 +232,24 @@ function access_console() {
     fi
 }
 
+# Function to backup container data
+function backup_container_data() {
+    read -rp "Enter the appdata path to backup: " appdata_path
+    read -rp "Enter the path where the backup should be saved: " backup_path
+    backup_file="$backup_path/backup_$(date +%Y%m%d_%H%M%S).zip"
+
+    if [ -d "$appdata_path" ]; then
+        echo "Creating backup..."
+        zip -r -9 "$backup_file" "$appdata_path"
+        if [ $? -eq 0 ]; then
+            echo "Backup successful: $backup_file"
+        else
+            echo "Error: Backup failed."
+        fi
+    else
+        echo "Error: Appdata path does not exist."
+    fi
+}
 
 # Check if no command is given
 if [ $# -eq 0 ]; then
@@ -280,6 +299,9 @@ log)
     ;;
 console | ssh)
     access_console "$2"
+    ;;
+backup)
+    backup_container_data
     ;;
 help)
     show_help
