@@ -8,6 +8,7 @@ function show_help() {
     echo "  install <container-name>    Install a new container"
     echo "  list                        List all installed containers"
     echo "  update <container-name>     Update specified container"
+    echo "  update -a|--all             Update all containers"
     echo "  remove <container-name>     Remove specified container"
     echo "  help                        Show this help message"
 }
@@ -101,20 +102,70 @@ function install_container() {
 
 # Function to list containers
 function list_containers() {
-    echo "Listing all containers"
-    # Example: docker ps
+    docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 }
 
 # Function to update a container
 function update_container() {
-    echo "Updating container: $1"
-    # Example: docker pull $1
+    local CONTAINER_NAME=$1
+
+    # Function to update a specific Docker container
+    function update_specific_container() {
+        local CONTAINER_NAME=$1
+
+        # Get the image name and tag from the existing container
+        IMAGE_NAME=$(docker inspect --format='{{.Config.Image}}' "$CONTAINER_NAME")
+        if [ -z "$IMAGE_NAME" ]; then
+            echo "Error: Could not find container with name $CONTAINER_NAME"
+            return 1
+        fi
+
+        # Pull the latest image
+        echo "Pulling the latest image: $IMAGE_NAME"
+        docker pull "$IMAGE_NAME"
+
+        # Stop the running container
+        echo "Stopping the container: $CONTAINER_NAME"
+        docker stop "$CONTAINER_NAME"
+
+        # Remove the old container
+        echo "Removing the container: $CONTAINER_NAME"
+        docker rm "$CONTAINER_NAME"
+
+        # Start a new container with the updated image
+        echo "Starting a new container: $CONTAINER_NAME with image $IMAGE_NAME"
+        docker run -d --name "$CONTAINER_NAME" "$IMAGE_NAME"
+
+        # Verify the update
+        echo "Verifying the update..."
+        docker ps -f "name=$CONTAINER_NAME"
+
+        echo "Update completed for container: $CONTAINER_NAME"
+    }
+
+    # Function to update all Docker containers
+    function update_all_containers() {
+        # Get the list of all running containers
+        CONTAINER_NAMES=$(docker ps --format '{{.Names}}')
+
+        for CONTAINER_NAME in $CONTAINER_NAMES; do
+            echo "Updating container: $CONTAINER_NAME"
+            update_specific_container "$CONTAINER_NAME"
+        done
+    }
+
+    # Check if the user wants to update all containers
+    if [ "$CONTAINER_NAME" == "-a" ] || [ "$CONTAINER_NAME" == "--all" ]; then
+        update_all_containers
+    else
+        update_specific_container "$CONTAINER_NAME"
+    fi
 }
 
 # Function to remove a container
 function remove_container() {
     echo "Removing container: $1"
-    # Example: docker rm $1
+    docker rm -f "$1"
 }
 
 # Check if no command is given
@@ -133,18 +184,18 @@ install | i)
         echo "Usage: sy install <container-name>"
     fi
     ;;
-list)
+list | l)
     list_containers
     ;;
-update)
+update | u)
     if [ $# -eq 2 ]; then
         update_container "$2"
     else
         echo "Error: Missing container name for update."
-        echo "Usage: sy update <container-name>"
+        echo "Usage: sy update <container-name> or sy update -a|--all"
     fi
     ;;
-remove)
+remove | rm)
     if [ $# -eq 2 ]; then
         remove_container "$2"
     else
