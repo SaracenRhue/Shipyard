@@ -6,7 +6,8 @@ function show_help() {
     echo "Usage: sy [command]"
     echo "Commands:"
     echo "  install <container-name>    Install a new container"
-    echo "  list                        List all installed containers"
+    echo "  list                        List all containers you can install"
+    echo "  search <keyword>            Search for containers by keyword"
     echo "  update <container-name>     Update specified container"
     echo "  update -a|--all             Update all containers"
     echo "  remove <container-name>     Remove specified container"
@@ -102,7 +103,43 @@ function install_container() {
 
 # Function to list containers
 function list_containers() {
-    docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+    local base_url="https://api.github.com/repos/SaracenRhue/Shipyard/contents/containers"
+
+    # Fetch the list of container configuration files from the GitHub repository
+    response=$(curl -s "$base_url")
+
+    # Check if the response is empty or not
+    if [ -z "$response" ]; then
+        echo "Error: Unable to fetch the list of containers."
+        return 1
+    fi
+
+    # Parse and display the list of containers
+    echo "Available containers for installation:"
+    echo "$response" | grep '"name"' | sed -E 's/.*"name": "(.*)\.conf".*/\1/' | sort
+}
+
+function search_container() {
+    local keyword=$1
+    local base_url="https://api.github.com/repos/SaracenRhue/Shipyard/contents/containers"
+
+    # Fetch the list of container configuration files from the GitHub repository
+    response=$(curl -s "$base_url")
+
+    # Check if the response is empty or not
+    if [ -z "$response" ]; then
+        echo "Error: Unable to fetch the list of containers."
+        return 1
+    fi
+
+    # Parse and display the list of containers that match the keyword
+    echo "Search results for '$keyword':"
+    echo "$response" | grep '"name"' | sed -E 's/.*"name": "(.*)\.conf".*/\1/' | grep -i "$keyword" | sort
+
+    # Check if there are any results
+    if [ -z "$(echo "$response" | grep '"name"' | sed -E 's/.*"name": "(.*)\.conf".*/\1/' | grep -i "$keyword")" ]; then
+        echo "No containers found matching '$keyword'."
+    fi
 }
 
 # Function to update a container
@@ -186,6 +223,14 @@ install | i)
     ;;
 list | l)
     list_containers
+    ;;
+search | s)
+    if [ $# -eq 2 ]; then
+        search_container "$2"
+    else
+        echo "Error: Missing keyword for search."
+        echo "Usage: sy search <keyword>"
+    fi
     ;;
 update | u)
     if [ $# -eq 2 ]; then
