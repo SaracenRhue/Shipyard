@@ -11,6 +11,8 @@ function show_help() {
     echo "  update <container-name>     Update specified container"
     echo "  update -a|--all             Update all containers"
     echo "  remove <container-name>     Remove specified container"
+    echo "  log <container-name>        Display the logs of a specified container"
+    echo "  ssh <container-name>        access a containers console"
     echo "  help                        Show this help message"
 }
 
@@ -205,6 +207,31 @@ function remove_container() {
     docker rm -f "$1"
 }
 
+# Function to fetch and display the logs of a specified container
+function container_logs() {
+    if [ -n "$1" ]; then
+        docker logs "$1"
+    else
+        echo "Error: Missing container name."
+        echo "Usage: sy logs <container-name>"
+    fi
+}
+
+# Function to access the console of a specified container
+function access_console() {
+    if [ -n "$1" ]; then
+        docker exec -it "$1" /bin/bash
+        if [ $? -ne 0 ]; then
+            echo "Error: Failed to start bash shell. Trying sh shell..."
+            docker exec -it "$1" /bin/sh
+        fi
+    else
+        echo "Error: Missing container name."
+        echo "Usage: sy console <container-name>"
+    fi
+}
+
+
 # Check if no command is given
 if [ $# -eq 0 ]; then
     show_help
@@ -247,6 +274,12 @@ remove | rm)
         echo "Error: Missing container name for remove."
         echo "Usage: sy remove <container-name>"
     fi
+    ;;
+log)
+    container_logs "$2"
+    ;;
+console | ssh)
+    access_console "$2"
     ;;
 help)
     show_help
