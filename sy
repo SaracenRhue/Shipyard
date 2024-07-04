@@ -13,6 +13,8 @@ function show_help() {
     echo "  remove <container-name>     Remove specified container"
     echo "  log <container-name>        Display the logs of a specified container"
     echo "  ssh <container-name>        access a containers console"
+    echo "  stats [container-name]      Display resource usage statistics for containers"
+    echo "  clean                       Clean up Docker resources and appdata directories"
     echo "  backup                      Backup container data"
     echo "  help                        Show this help message"
 }
@@ -251,6 +253,79 @@ function backup_container_data() {
     fi
 }
 
+# Function to display resource usage statistics for containers
+function show_container_stats() {
+    local container_name="$1"
+    
+    # Check if a container name was provided
+    if [ -z "$container_name" ]; then
+        echo "Showing stats for all running containers:"
+        docker stats --no-stream
+    else
+        # Check if the specified container exists and is running
+        if docker ps -q -f name="$container_name" | grep -q .; then
+            echo "Showing stats for container: $container_name"
+            docker stats --no-stream "$container_name"
+        else
+            echo "Error: Container '$container_name' not found or not running."
+            return 1
+        fi
+    fi
+}
+
+function cleanup_docker() {
+    echo "Starting Docker cleanup..."
+
+    # Remove all stopped containers
+    echo "Removing stopped containers..."
+    docker container prune -f
+
+    # Remove unused images
+    echo "Removing unused images..."
+    docker image prune -a -f
+
+    # Remove dangling volumes
+    echo "Removing dangling volumes..."
+    docker volume prune -f
+
+    # Remove unused networks
+    echo "Removing unused networks..."
+    docker network prune -f
+
+    # Remove exited containers and their volumes
+    echo "Removing exited containers and their volumes..."
+    docker rm -v $(docker ps -a -q -f status=exited) 2>/dev/null
+
+    # Prompt for appdata path
+    read -p "Enter the path to your appdata directory: " APPDATA_PATH
+
+    # Verify the path exists
+    if [ ! -d "$APPDATA_PATH" ]; then
+        echo "Error: The specified appdata path does not exist."
+        return 1
+    fi
+
+    # Clean up appdata directory
+    echo "Cleaning up appdata directory..."
+    for dir in "$APPDATA_PATH"/*; do
+        if [ -d "$dir" ]; then
+            container_name=$(basename "$dir")
+            if ! docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+                echo "Container '$container_name' no longer exists. Remove its data? (y/n)"
+                read -r response
+                if [[ "$response" =~ ^[Yy]$ ]]; then
+                    echo "Removing data for '$container_name'..."
+                    rm -rf "$dir"
+                else
+                    echo "Skipping '$container_name'."
+                fi
+            fi
+        fi
+    done
+
+    echo "Docker and appdata cleanup completed."
+}
+
 # Check if no command is given
 if [ $# -eq 0 ]; then
     show_help
@@ -300,8 +375,18 @@ log)
 console | ssh)
     access_console "$2"
     ;;
+stats)
+    if [ $# -eq 2 ]; then
+        show_container_stats "$2"
+    else
+        show_container_stats
+    fi
+    ;;
 backup)
     backup_container_data
+    ;;
+clean)
+    cleanup_docker
     ;;
 help)
     show_help
