@@ -1,7 +1,3 @@
-Certainly! Here's a comprehensive README for the Shipyard project:
-
----
-
 # Shipyard
 
 A package manager for containers
