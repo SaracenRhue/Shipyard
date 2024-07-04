@@ -100,7 +100,7 @@ function show_help() {
     echo "  remove <container-name>     Remove specified container"
     echo "  log <container-name>        Display the logs of a specified container"
     echo "  ssh <container-name>        access a containers console"
-    echo "  stats [container-name]      Display resource usage statistics for containers"
+    echo "  stats <container-name>      Display resource usage statistics for containers"
     echo "  rollback <container-name>   Rollback a container to its previous version"
     echo "  clean                       Clean up Docker resources and appdata directories"
     echo "  backup                      Backup container data"
