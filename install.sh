@@ -25,10 +25,10 @@ fi
 
 # Add alias to appropriate shell configuration file
 if [ -n "$BASH_VERSION" ]; then
-    echo "alias sy='curl -fsSL https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/sy | bash -s'" >> ~/.bashrc
+    echo "alias sy='bash <(curl -fsSL https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/sy)'" >> ~/.bashrc
     echo "Alias added to ~/.bashrc. Please restart your terminal or run 'source ~/.bashrc' to apply the changes."
 elif [ -n "$ZSH_VERSION" ]; then
-    echo "alias sy='curl -fsSL https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/sy | bash -s'" >> ~/.zshrc
+    echo "alias sy='bash <(curl -fsSL https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/sy)'" >> ~/.zshrc
     echo "Alias added to ~/.zshrc. Please restart your terminal or run 'source ~/.zshrc' to apply the changes."
 else
     echo "Error: Unsupported shell. Please add the alias manually."
