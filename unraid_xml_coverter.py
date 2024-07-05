@@ -16,6 +16,10 @@ for xml_file in xml_files:
     name = soup.find('Name').text
     repo = soup.find('Repository').text
     parameters = soup.find_all('Config')
+    for p in parameters:
+        if p.get('Type') == 'Port':
+            if p.get('Default') == '':
+                p['Default'] = p.get('Target')
     ports = [{'name': p.get('Name').upper().replace(' ','_'),'target':p.get('Target'), 'value':p.get('Default'), 'mode': p.get('Mode')} for p in parameters if p.get('Type') == 'Port']
     variables = [{'target':p.get('Target'), 'value':p.get('Default')} for p in parameters if p.get('Type') == 'Variable']
     volumes = [{'name': p.get('Name').upper().replace(' ','_'), 'target':p.get('Target'), 'value':p.get('Default')[9:]} for p in parameters if p.get('Type') == 'Path']
