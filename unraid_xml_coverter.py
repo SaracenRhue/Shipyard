@@ -51,6 +51,8 @@ for xml_file in xml_files:
             file_content += f'{v["name"]}=/var/run/docker.sock\n'
         if v['value'] == '':
             v['value'] = f'/appdata/{name}'
+        if v['name'] in file_content:
+            continue
         file_content += f'{v["name"]}={v["value"]}\n'
 
     file_content = file_content.replace(':_/', '_')
