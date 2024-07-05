@@ -8,7 +8,11 @@ xml_files = os.listdir(xml_dir)
 
 for xml_file in xml_files:
     with open(f'{xml_dir}/{xml_file}', 'r') as f:
-        soup = BeautifulSoup(f.read(), 'xml')
+        try:
+            soup = BeautifulSoup(f.read(), 'xml')
+        except:
+            print(f'Error parsing {xml_file}')
+            continue
     name = soup.find('Name').text
     repo = soup.find('Repository').text
     parameters = soup.find_all('Config')
