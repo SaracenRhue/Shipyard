@@ -1,5 +1,9 @@
 import os
+import re
 from bs4 import BeautifulSoup
+
+def clean(text):
+    return text.replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '').replace(':_/', '_')
 
 
 xml_dir = 'xml'
@@ -24,12 +28,22 @@ for xml_file in xml_files:
     variables = [{'target':p.get('Target'), 'value':p.get('Default')} for p in parameters if p.get('Type') == 'Variable']
     volumes = [{'name': p.get('Name').upper().replace(' ','_'), 'target':p.get('Target'), 'value':p.get('Default')[9:]} for p in parameters if p.get('Type') == 'Path']
 
+    for p in ports:
+        p['name'] = clean(p['name'])
+    for v in variables:
+        v['target'] = clean(v['target'])
+    for v in volumes:
+        v['name'] = clean(v['name'])
+        
+
     run_cmd = 'COMMAND="docker run -d --name={{NAME}} '
     for port in ports:
-        port["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '')
+        port["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '').replace(':_/', '_')
         run_cmd += f'-p {{{{{port["name"]}}}}}:{port["target"]}/{port["mode"]} '
     for volume in volumes:
-        volume["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '')
+        if "DOCKER" in volume["name"]:
+            volume['name'] = 'DOCKER_SOCKET'
+        volume["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '').replace(':_/', '_')
         run_cmd += f'-v {{{{{volume["name"]}}}}}:{volume["target"]} '
     for variable in variables:
         if variable["target"] != 'UMASK' and variable["target"] != 'PUID' and variable["target"] != 'PGID':
@@ -37,34 +51,27 @@ for xml_file in xml_files:
         else:
             run_cmd += f'-e {variable["target"]}={variable["value"]} '
     file_content = f'{run_cmd}{repo}"\n'
+    
 
-
-    file_content += f'NAME={name}\n'
-
-    for p in ports:
-        if p['value'] == '':
-            p['value'] = 'CUSTOM_VALUE'
+    pattern = r'\{\{([^}]+)\}\}'
+    matches = re.findall(pattern, file_content)
+    parameters = [{'name': m, 'value': ''} for m in matches]
+    
+    for p in parameters:
+        if p['name'] in [x['name'] for x in ports]:
+            p['value'] = ports[[x['name'] for x in ports].index(p['name'])]['value']
+        if p['name'] in [x['target'] for x in variables]:
+            p['value'] = variables[[x['target'] for x in variables].index(p['name'])]['value']
+        if p['name'] in [x['name'] for x in volumes]:
+            p['value'] = volumes[[x['name'] for x in volumes].index(p['name'])]['value']
+            
+        if p['name'] == 'NAME':
+            p['value'] = name
+        if p['name'] == 'DOCKER_SOCKET':
+            p['value'] = '/var/run/docker.sock'
         file_content += f'{p["name"]}={p["value"]}\n'
 
-
-    for v in variables:
-        if ' ' in v['value']:
-            v['value'] = '"'+"'"+v["value"]+"'"+'"'
-        if v['value'] == '':
-            v['value'] = '"'+"''"+'"'
-        if v["target"] != 'UMASK' and v["target"] != 'PUID' and v["target"] != 'PGID':
-            file_content += f'{v["target"]}={v["value"]}\n'
-
-    for v in volumes:
-        v['name'] = v['name'].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '')
-        if 'DOCKER' in v["name"]:
-            file_content += f'{v["name"]}=/var/run/docker.sock\n'
-        if v['value'] == '':
-            v['value'] = f'/appdata/{name}'
-        if v['name'] in file_content:
-            continue
-        file_content += f'{v["name"]}={v["value"]}\n'
-
-    file_content = file_content.replace(':_/', '_')
     with open(f'{config_dir}/{name.lower()}.conf', 'w') as f:
         f.write(file_content)
+
+
