@@ -11,79 +11,153 @@ main() {
     fi
 
     case "$1" in
-        install | i)
-            if [ $# -ge 2 ]; then
-                install_container "${@:2}"
-            else
-                echo "Error: Missing container name for install."
-                echo "Usage: sy install <container-name>"
-            fi
-            ;;
-        list | l)
-            list_containers
-            ;;
-        search | s)
-            if [ $# -eq 2 ]; then
-                search_container "$2"
-            else
-                echo "Error: Missing keyword for search."
-                echo "Usage: sy search <keyword>"
-            fi
-            ;;
-        update | u)
-            if [ $# -eq 2 ]; then
-                update_container "$2"
-            else
-                echo "Error: Missing container name for update."
-                echo "Usage: sy update <container-name> or sy update -a|--all"
-            fi
-            ;;
-        remove | rm)
-            if [ $# -eq 2 ]; then
-                remove_container "$2"
-            else
-                echo "Error: Missing container name for remove."
-                echo "Usage: sy remove <container-name>"
-            fi
-            ;;
-        log)
-            container_logs "$2"
-            ;;
-        console | ssh)
-            access_console "$2"
-            ;;
-        stats)
-            if [ $# -eq 2 ]; then
-                show_container_stats "$2"
-            else
-                show_container_stats
-            fi
-            ;;
-        backup)
-            backup_container_data
-            ;;
-        clean)
-            cleanup_docker
-            ;;
-        rollback)
-            if [ $# -eq 2 ]; then
-                rollback_container "$2"
-            else
-                echo "Error: Missing container name for rollback."
-                echo "Usage: sy rollback <container-name>"
-            fi
-            ;;
-        create-template)
-            create_template
-            ;;
-        help)
-            show_help
-            ;;
-        *)
-            echo "Error: Unknown command '$1'"
-            show_help
-            ;;
+    install | i)
+        if [ $# -ge 2 ]; then
+            install_container "${@:2}"
+        else
+            echo "Error: Missing container name for install."
+            echo "Usage: sy install <container-name>"
+        fi
+        ;;
+    list | l)
+        list_containers
+        ;;
+    search | s)
+        if [ $# -eq 2 ]; then
+            search_container "$2"
+        else
+            echo "Error: Missing keyword for search."
+            echo "Usage: sy search <keyword>"
+        fi
+        ;;
+    update | u)
+        if [ $# -eq 2 ]; then
+            update_container "$2"
+        else
+            echo "Error: Missing container name for update."
+            echo "Usage: sy update <container-name> or sy update -a|--all"
+        fi
+        ;;
+    remove | rm)
+        if [ $# -eq 2 ]; then
+            remove_container "$2"
+        else
+            echo "Error: Missing container name for remove."
+            echo "Usage: sy remove <container-name>"
+        fi
+        ;;
+    log)
+        container_logs "$2"
+        ;;
+    console | ssh)
+        access_console "$2"
+        ;;
+    stats)
+        if [ $# -eq 2 ]; then
+            show_container_stats "$2"
+        else
+            show_container_stats
+        fi
+        ;;
+    backup)
+        backup_container_data
+        ;;
+    clean)
+        cleanup_docker
+        ;;
+    rollback)
+        if [ $# -eq 2 ]; then
+            rollback_container "$2"
+        else
+            echo "Error: Missing container name for rollback."
+            echo "Usage: sy rollback <container-name>"
+        fi
+        ;;
+    create-template)
+        create_template
+        ;;
+    analyze)
+        if [ $# -ge 2 ]; then
+            analyze_docker_image "$2" "$3"
+        else
+            echo "Error: Missing Docker Hub repository name."
+            echo "Usage: sy analyze <repository> [tag]"
+        fi
+        ;;
+    help)
+        show_help
+        ;;
+    *)
+        echo "Error: Unknown command '$1'"
+        show_help
+        ;;
     esac
+}
+function analyze_docker_image() {
+    local repo="$1"
+    local tag="${2:-latest}"
+    local full_image_name="$repo:$tag"
+
+    echo "Analyzing Docker image: $full_image_name"
+
+    # Pull the image
+    echo "Pulling image..."
+    docker pull "$full_image_name"
+
+    # Get image details
+    echo "Inspecting image..."
+    local image_info=$(docker inspect "$full_image_name")
+
+    # Extract exposed ports
+    local exposed_ports=$(echo "$image_info" | jq -r '.[0].Config.ExposedPorts | keys[]' 2>/dev/null)
+
+    # Extract volume mount points
+    local volumes=$(echo "$image_info" | jq -r '.[0].Config.Volumes | keys[]' 2>/dev/null)
+
+    # Extract environment variables
+    local env_vars=$(echo "$image_info" | jq -r '.[0].Config.Env[]' 2>/dev/null)
+
+    # Generate template
+    local template_name=$(echo "$repo" | cut -d/ -f2- | tr '/' '_')
+    local template_file="${template_name}.conf"
+
+    echo "Generating template file: $template_file"
+
+    # Start with the basic run command
+    echo "COMMAND=\"docker run -d --name={{NAME}} " >"$template_file"
+
+    # Add port mappings
+    for port in $exposed_ports; do
+        host_port="${port%/*}"
+        echo "HOST_PORT_$host_port=$host_port" >>"$template_file"
+        echo -n "-p {{HOST_PORT_$host_port}}:$port " >>"$template_file"
+    done
+
+    # Add volume mounts
+    for volume in $volumes; do
+        volume_var=$(echo "$volume" | tr '/' '_' | tr '[:lower:]' '[:upper:]')
+        echo "VOLUME_$volume_var=/path/to/host/directory" >>"$template_file"
+        echo -n "-v {{VOLUME_$volume_var}}:$volume " >>"$template_file"
+    done
+
+    # Add environment variables
+    for env in $env_vars; do
+        if [[ $env == *"="* ]]; then
+            env_name="${env%%=*}"
+            env_value="${env#*=}"
+            echo "$env_name=$env_value" >>"$template_file"
+            echo -n "-e $env_name={{$env_name}} " >>"$template_file"
+        fi
+    done
+
+    # Finish the run command
+    echo "$full_image_name\"" >>"$template_file"
+
+    echo "Template file generated: $template_file"
+    echo "Content of $template_file:"
+    cat "$template_file"
+
+    echo "Please review and adjust the generated template as needed."
 }
 
 # Helper Functions
@@ -120,7 +194,7 @@ function install_container() {
 
         if curl --output /dev/null --silent --head --fail "$url"; then
             echo "Processing $container_config:"
-            
+
             while IFS='=' read -r name value || [[ -n "$name" ]]; do
                 if [[ "$name" =~ ^[[:alpha:]] ]]; then
                     name=$(echo "$name" | xargs)
@@ -277,7 +351,7 @@ function access_console() {
 
 function show_container_stats() {
     local container_name="$1"
-    
+
     if [ -z "$container_name" ]; then
         echo "Showing stats for all running containers:"
         docker stats --no-stream
@@ -404,34 +478,34 @@ function create_template() {
 
     template_file="${template_name}.conf"
 
-    echo "COMMAND=\"$docker_command\"" > "$template_file"
+    echo "COMMAND=\"$docker_command\"" >"$template_file"
 
     options=$(echo "$docker_command" | grep -oP '(?<= -)\w+(?= |$)|\w+=\S+')
-    
+
     for option in $options; do
         case $option in
-            p=*|publish=*)
-                port_mapping=${option#*=}
-                host_port=$(echo "$port_mapping" | cut -d: -f1)
-                container_port=$(echo "$port_mapping" | cut -d: -f2-)
-                echo "${container_port%/*}=$host_port" >> "$template_file"
-                sed -i "s|-p $port_mapping|-p {{${container_port%/*}}}:$container_port|g" "$template_file"
-                ;;
-            v=*|volume=*)
-                volume=${option#*=}
-                host_path=$(echo "$volume" | cut -d: -f1)
-                container_path=$(echo "$volume" | cut -d: -f2-)
-                variable_name=$(echo "$container_path" | tr '/' '_' | tr '[:lower:]' '[:upper:]')
-                echo "${variable_name}=$host_path" >> "$template_file"
-                sed -i "s|-v $volume|-v {{$variable_name}}:$container_path|g" "$template_file"
-                ;;
-            e=*|env=*)
-                env=${option#*=}
-                env_name=$(echo "$env" | cut -d= -f1)
-                env_value=$(echo "$env" | cut -d= -f2-)
-                echo "${env_name}=$env_value" >> "$template_file"
-                sed -i "s|-e $env|-e $env_name={{$env_name}}|g" "$template_file"
-                ;;
+        p=* | publish=*)
+            port_mapping=${option#*=}
+            host_port=$(echo "$port_mapping" | cut -d: -f1)
+            container_port=$(echo "$port_mapping" | cut -d: -f2-)
+            echo "${container_port%/*}=$host_port" >>"$template_file"
+            sed -i "s|-p $port_mapping|-p {{${container_port%/*}}}:$container_port|g" "$template_file"
+            ;;
+        v=* | volume=*)
+            volume=${option#*=}
+            host_path=$(echo "$volume" | cut -d: -f1)
+            container_path=$(echo "$volume" | cut -d: -f2-)
+            variable_name=$(echo "$container_path" | tr '/' '_' | tr '[:lower:]' '[:upper:]')
+            echo "${variable_name}=$host_path" >>"$template_file"
+            sed -i "s|-v $volume|-v {{$variable_name}}:$container_path|g" "$template_file"
+            ;;
+        e=* | env=*)
+            env=${option#*=}
+            env_name=$(echo "$env" | cut -d= -f1)
+            env_value=$(echo "$env" | cut -d= -f2-)
+            echo "${env_name}=$env_value" >>"$template_file"
+            sed -i "s|-e $env|-e $env_name={{$env_name}}|g" "$template_file"
+            ;;
         esac
     done
 

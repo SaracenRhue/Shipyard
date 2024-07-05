@@ -29,7 +29,7 @@ for xml_file in xml_files:
     file_content = f'{run_cmd}{repo}"\n'
 
 
-
+    file_content += f'NAME={name}\n'
 
     for p in ports:
         if p['value'] == '':
@@ -44,7 +44,11 @@ for xml_file in xml_files:
             v['value'] = '"'+"''"+'"'
         if v["target"] != 'UMASK' and v["target"] != 'PUID' and v["target"] != 'PGID':
             file_content += f'{v["target"]}={v["value"]}\n'
+
     for v in volumes:
+        v['name'] = v['name'].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '')
+        if v["name"] == 'DOCKER_SOCKET':
+            file_content += f'{v["name"]}=/var/run/docker.sock\n'
         if v['value'] == '':
             v['value'] = f'/appdata/{name}'
         file_content += f'{v["name"]}={v["value"]}\n'
