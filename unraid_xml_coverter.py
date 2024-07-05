@@ -26,8 +26,10 @@ for xml_file in xml_files:
 
     run_cmd = 'COMMAND="docker run -d --name={{NAME}} '
     for port in ports:
+        port["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '')
         run_cmd += f'-p {{{{{port["name"]}}}}}:{port["target"]}/{port["mode"]} '
     for volume in volumes:
+        volume["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '')
         run_cmd += f'-v {{{{{volume["name"]}}}}}:{volume["target"]} '
     for variable in variables:
         if variable["target"] != 'UMASK' and variable["target"] != 'PUID' and variable["target"] != 'PGID':
@@ -55,7 +57,7 @@ for xml_file in xml_files:
 
     for v in volumes:
         v['name'] = v['name'].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '')
-        if v["name"] == 'DOCKER_SOCKET':
+        if 'DOCKER' in v["name"]:
             file_content += f'{v["name"]}=/var/run/docker.sock\n'
         if v['value'] == '':
             v['value'] = f'/appdata/{name}'
