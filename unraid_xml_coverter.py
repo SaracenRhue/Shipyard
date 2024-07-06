@@ -30,6 +30,14 @@ for xml_file in xml_files:
 
     for p in ports:
         p['name'] = clean(p['name'])
+
+    for i in range(len(ports)):
+        if ports[i]['name'].isdigit() and ports[i]['name'] == ports[i+1]['name']:
+            ports[i]['name'] = f"TCP_{ports[i]['name']}"
+            ports[i+1]['name'] = f"UDP_{ports[i+1]['name']}"
+        elif ports[i]['name'].isdigit():
+            ports[i]['name'] = f"PORT_{ports[i]['name']}"
+
     for v in variables:
         v['target'] = clean(v['target'])
     for v in volumes:
@@ -38,12 +46,10 @@ for xml_file in xml_files:
 
     run_cmd = 'COMMAND="docker run -d --name={{NAME}} '
     for port in ports:
-        port["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '').replace(':_/', '_')
         run_cmd += f'-p {{{{{port["name"]}}}}}:{port["target"]}/{port["mode"]} '
     for volume in volumes:
         if "DOCKER" in volume["name"]:
             volume['name'] = 'DOCKER_SOCKET'
-        volume["name"].replace('/', '_').replace(' ', '_').replace('-', '_').replace('.', '_').replace('(', '').replace(')', '').replace('"', '').replace("'", '').replace(':_/', '_')
         run_cmd += f'-v {{{{{volume["name"]}}}}}:{volume["target"]} '
     for variable in variables:
         if variable["target"] != 'UMASK' and variable["target"] != 'PUID' and variable["target"] != 'PGID':
@@ -55,6 +61,8 @@ for xml_file in xml_files:
 
     pattern = r'\{\{([^}]+)\}\}'
     matches = re.findall(pattern, file_content)
+
+    # matches = [x for i, x in enumerate(matches) if x not in matches[:i]]
     parameters = [{'name': m, 'value': ''} for m in matches]
     
     for p in parameters:
@@ -70,6 +78,7 @@ for xml_file in xml_files:
         if p['name'] == 'DOCKER_SOCKET':
             p['value'] = '/var/run/docker.sock'
         file_content += f'{p["name"]}={p["value"]}\n'
+
 
     with open(f'{config_dir}/{name.lower()}.conf', 'w') as f:
         f.write(file_content)
