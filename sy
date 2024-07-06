@@ -1,5 +1,7 @@
 #!/bin/bash
 
+bash <(curl -fsSL https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/autocomplete.sh)
+
 # Global variables
 declare -a run_commands # Array to store Docker commands for reference
 
