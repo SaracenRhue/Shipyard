@@ -11,14 +11,19 @@ main() {
     fi
 
     case "$1" in
-    install | i)
-        if [ $# -ge 2 ]; then
-            install_container "${@:2}"
-        else
-            echo "Error: Missing container name for install."
-            echo "Usage: sy install <container-name>"
-        fi
-        ;;
+install | i)
+    dry_run=false
+    if [ "$2" = "--dry-run" ]; then
+        dry_run=true
+        shift
+    fi
+    if [ $# -ge 2 ]; then
+        install_container "$dry_run" "${@:2}"
+    else
+        echo "Error: Missing container name for install."
+        echo "Usage: sy install [--dry-run] <container-name>"
+    fi
+    ;;
     list | l)
         list_containers
         ;;
@@ -185,6 +190,9 @@ function show_help() {
 # Core Functions
 
 function install_container() {
+    local dry_run=$1
+    shift
+
     echo "Collecting Docker run commands..."
 
     for container_config in "$@"; do
@@ -238,17 +246,21 @@ function install_container() {
         echo "$cmd"
     done
 
-    echo "Do you want to execute all collected Docker commands? [y/n]"
-    read -r execute_confirm
-    if [[ "$execute_confirm" =~ ^[Yy]$ ]]; then
-        echo "Executing all Docker commands..."
-        for cmd in "${run_commands[@]}"; do
-            echo "Executing: $cmd"
-            eval "$cmd"
-        done
-        echo "All commands have been executed."
+    if [ "$dry_run" = true ]; then
+        echo "Dry run completed. Above commands would be executed."
     else
-        echo "Execution aborted by user."
+        echo "Do you want to execute all collected Docker commands? [y/n]"
+        read -r execute_confirm
+        if [[ "$execute_confirm" =~ ^[Yy]$ ]]; then
+            echo "Executing all Docker commands..."
+            for cmd in "${run_commands[@]}"; do
+                echo "Executing: $cmd"
+                eval "$cmd"
+            done
+            echo "All commands have been executed."
+        else
+            echo "Execution aborted by user."
+        fi
     fi
 }
 
