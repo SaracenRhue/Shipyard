@@ -7,9 +7,8 @@ Shipyard is a powerful command-line tool designed to simplify Docker container m
 1. [Installation](#installation)
 2. [Usage](#usage)
 3. [Commands](#commands)
-4. [Creating Container Templates](#creating-container-templates)
-5. [Contributing Templates](#contributing-templates)
-6. [License](#license)
+4. [Contributing Templates](#contributing-templates)
+5. [License](#license)
 
 ## Installation
 
@@ -49,19 +48,8 @@ sy help
 - `rollback <container-name>`: Rollback a container to its previous version
 - `clean`: Clean up Docker resources and appdata directories
 - `backup`: Backup container data
-- `create-template`: Create a new container template
-- `analyze <repository> [tag]`: Analyze a Docker Hub image and generate a template
-
-## Creating Container Templates
-
-To create a new container template:
-
-1. Run `sy create-template`
-2. Enter the full Docker run command when prompted
-3. Provide a name for the template
-4. The tool will generate a `.conf` file with the template
-
-Alternatively, you can use `sy analyze <repository> [tag]` to generate a template from a Docker Hub image.
+- `create-template`: Create a new container template (not woking correctly yet)
+- `analyze <repository> [tag]`: Analyze a Docker Hub image and generate a template (not woking correctly yet)
 
 ## Contributing Templates
 
