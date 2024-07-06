@@ -171,7 +171,7 @@ function show_help() {
     echo "Shipyard (sy) - Container Management Tool"
     echo "Usage: sy [command]"
     echo "Commands:"
-    echo "  install <container-name>    Install a new container"
+    echo "  install [--dry-run] <container-name>    Install a new container (--dry-run to simulate)"
     echo "  list                        List all containers you can install"
     echo "  search <keyword>            Search for containers by keyword"
     echo "  update <container-name>     Update specified container"
