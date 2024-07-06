@@ -1,17 +1,15 @@
-# Shipyard
+# Shipyard (sy) - Container Management Tool
 
-A package manager for containers
+Shipyard is a powerful command-line tool designed to simplify Docker container management. It provides an easy-to-use interface for installing, updating, and managing containers based on pre-configured templates.
 
-## Overview
+## Table of Contents
 
-Shipyard (sy) is a container management tool that simplifies the installation, listing, updating, and removal of Docker containers. It allows you to manage your Docker containers with easy-to-use commands.
-
-## Features
-
-- **Install**: Install new containers based on predefined configurations.
-- **List**: List all installed containers with their current status.
-- **Update**: Update specified containers or all containers to the latest image.
-- **Remove**: Remove specified containers.
+1. [Installation](#installation)
+2. [Usage](#usage)
+3. [Commands](#commands)
+4. [Creating Container Templates](#creating-container-templates)
+5. [Contributing Templates](#contributing-templates)
+6. [License](#license)
 
 ## Installation
 
@@ -25,99 +23,62 @@ This will download and install Shipyard on your system.
 
 ## Usage
 
-After installation, you can use Shipyard with the `sy` command followed by various subcommands.
-
-### Commands
-
-#### Install a New Container
+After installation, you can use Shipyard with the `sy` command. Here's the basic syntax:
 
 ```bash
-sy install <container-name>
-```
-or
-```bash
-sy i <container-name>
+sy [command] [options]
 ```
 
-This command installs a new container based on the configuration available at `https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/containers/<container-name>.conf`.
-
-#### List All Installed Containers
-
-```bash
-sy list
-```
-
-This command lists all installed containers with their names, images, and statuses.
-
-#### Update a Specified Container
-
-```bash
-sy update <container-name>
-```
-
-This command updates the specified container to the latest image.
-
-#### Update All Containers
-
-```bash
-sy update -a
-```
-or
-```bash
-sy update --all
-```
-
-This command updates all installed containers to their latest images.
-
-#### Remove a Specified Container
-
-```bash
-sy remove <container-name>
-```
-
-This command removes the specified container.
-
-#### Show Help
+To see a list of available commands, run:
 
 ```bash
 sy help
 ```
 
-This command displays the help menu with usage information for all commands.
+## Commands
 
-## Usage Without Installation
+- `install [--dry-run] <container-name>`: Install a new container
+- `list`: List all available container templates
+- `search <keyword>`: Search for container templates
+- `update <container-name>`: Update a specific container
+- `update -a|--all`: Update all containers
+- `remove <container-name>`: Remove a specific container
+- `log <container-name>`: Display logs of a container
+- `console <container-name>`: Access a container's console
+- `stats [container-name]`: Display resource usage statistics
+- `rollback <container-name>`: Rollback a container to its previous version
+- `clean`: Clean up Docker resources and appdata directories
+- `backup`: Backup container data
+- `create-template`: Create a new container template
+- `analyze <repository> [tag]`: Analyze a Docker Hub image and generate a template
 
-If you prefer to use Shipyard without installing it, you can run it directly from the source:
+## Creating Container Templates
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/sy | bash -s
-```
+To create a new container template:
 
-This will download and execute the latest version of Shipyard.
+1. Run `sy create-template`
+2. Enter the full Docker run command when prompted
+3. Provide a name for the template
+4. The tool will generate a `.conf` file with the template
 
-## Example
+Alternatively, you can use `sy analyze <repository> [tag]` to generate a template from a Docker Hub image.
 
-```bash
-# Install a container
-sy install my-container
+## Contributing Templates
 
-# List all containers
-sy list
+We welcome contributions of new container templates to Shipyard. If you have a template you'd like to share:
 
-# Update a specific container
-sy update my-container
+1. Create a new `.conf` file in the `containers` directory
+2. Ensure your template follows the existing format
+3. Submit a pull request with your new template
 
-# Update all containers
-sy update --all
+## License
 
-# Remove a container
-sy remove my-container
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Configuration
+## Support
 
-Shipyard uses configuration files for each container, which are hosted at `https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/containers/`. Each configuration file defines the necessary Docker run command and other parameters required to set up the container.
+If you encounter any issues or have questions, please file an issue on the [GitHub issue tracker](https://github.com/SaracenRhue/Shipyard/issues).
 
-## Contributing
+---
 
-Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request on the [GitHub repository](https://github.com/SaracenRhue/Shipyard). Feel free to add container templates for other containers you use!
+Shipyard - Simplifying Docker container management, one command at a time.
