@@ -44,7 +44,7 @@ for xml_file in xml_files:
         v['name'] = clean(v['name'])
         
 
-    run_cmd = 'COMMAND="docker run -d --name={{NAME}} '
+    run_cmd = 'COMMAND="docker run -d --name={{NAME}} --restart={{RESTART_POLICY}} '
     for port in ports:
         run_cmd += f'-p {{{{{port["name"]}}}}}:{port["target"]}/{port["mode"]} '
     for volume in volumes:
@@ -79,7 +79,7 @@ for xml_file in xml_files:
             p['value'] = '/var/run/docker.sock'
         file_content += f'{p["name"]}={p["value"]}\n'
 
-
+    file_content += 'RESTART_POLICY=unless-stopped'
     with open(f'{config_dir}/{name.lower()}.conf', 'w') as f:
         f.write(file_content)
 
