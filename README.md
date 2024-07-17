@@ -8,7 +8,6 @@ Shipyard is a powerful command-line tool designed to simplify Docker container m
 2. [Usage](#usage)
 3. [Commands](#commands)
 4. [Contributing Templates](#contributing-templates)
-5. [License](#license)
 
 ## Installation
 
@@ -58,10 +57,6 @@ We welcome contributions of new container templates to Shipyard. If you have a t
 1. Create a new `.conf` file in the `containers` directory
 2. Ensure your template follows the existing format
 3. Submit a pull request with your new template
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
