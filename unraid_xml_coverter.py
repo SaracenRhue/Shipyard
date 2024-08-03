@@ -78,9 +78,13 @@ for xml_file in xml_files:
         if p['name'] == 'DOCKER_SOCKET':
             p['value'] = '/var/run/docker.sock'
         file_content += f'{p["name"]}={p["value"]}\n'
-
+    file_content = file_content.replace('RESTART_POLICY=', '')
     file_content += 'RESTART_POLICY=unless-stopped'
-    with open(f'{config_dir}/{name.lower()}.conf', 'w') as f:
-        f.write(file_content)
+    #rm empty lines
+    file_content = '\n'.join([line for line in file_content.split('\n') if line.strip()])
+        # dont overwrite existing configs
+    if not os.path.exists(f'{config_dir}/{name.lower()}.conf'):
+        with open(f'{config_dir}/{name.lower()}.conf', 'w') as f:
+            f.write(file_content)
 
 
