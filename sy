@@ -13,15 +13,23 @@ main() {
     case "$1" in
 install | i)
     dry_run=false
+    stack=false
     if [ "$2" = "--dry-run" ]; then
         dry_run=true
         shift
+    elif [ "$2" = "--stack" ]; then
+        stack=true
+        shift
     fi
     if [ $# -ge 2 ]; then
-        install_container "$dry_run" "${@:2}"
+        if [ "$stack" = true ]; then
+            install_stack "$dry_run" "${@:2}"
+        else
+            install_container "$dry_run" "${@:2}"
+        fi
     else
-        echo "Error: Missing container name for install."
-        echo "Usage: sy install [--dry-run] <container-name>"
+        echo "Error: Missing container/stack name for install."
+        echo "Usage: sy install [--dry-run|--stack] <container-name|stack-name>"
     fi
     ;;
     list | l)
@@ -171,7 +179,7 @@ function show_help() {
     echo "Shipyard (sy) - Container Management Tool"
     echo "Usage: sy [command]"
     echo "Commands:"
-    echo "  install [--dry-run] <container-name>    Install a new container (--dry-run to simulate)"
+    echo "  install [--dry-run|--stack] <container-name|stack-name>    Install a new container or stack (--dry-run to simulate)"
     echo "  list                        List all containers you can install"
     echo "  search <keyword>            Search for containers by keyword"
     echo "  update <container-name>     Update specified container"
@@ -263,6 +271,7 @@ function install_container() {
         fi
     fi
 }
+
 
 function list_containers() {
     local base_url="https://api.github.com/repos/SaracenRhue/Shipyard/contents/containers"
@@ -524,6 +533,28 @@ function create_template() {
     echo "Template file created: $template_file"
     echo "Content of $template_file:"
     cat "$template_file"
+}
+
+function install_stack() {
+    local stack_name=$2
+    
+    echo "Installing stack: $stack_name"
+    echo "Stack contains the following containers:"
+    
+    # Store containers in an array first
+    IFS=$'\n' read -r -d '' -a containers < <(curl -s "https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/stacks/$stack_name.conf" && printf '\0')
+    printf '%s\n' "${containers[@]}"
+    
+    echo -e "\nDo you want to proceed with installation? [y/n]"
+    read -r proceed
+
+    if [[ "$proceed" =~ ^[Yy]$ ]]; then
+        for container in "${containers[@]}"; do
+            if [ -n "$container" ]; then
+                install_container false "$container"
+            fi
+        done
+    fi
 }
 
 # Execute the main function
