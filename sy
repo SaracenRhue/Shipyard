@@ -540,20 +540,13 @@ function install_stack() {
     
     echo "Installing stack: $stack_name"
     echo "Stack contains the following containers:"
-    
-    # Store containers in an array first
-    IFS=$'\n' read -r -d '' -a containers < <(curl -s "https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/stacks/$stack_name.conf" && printf '\0')
-    printf '%s\n' "${containers[@]}"
+    curl -s "https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/stacks/$stack_name.conf"
     
     echo -e "\nDo you want to proceed with installation? [y/n]"
     read -r proceed
 
     if [[ "$proceed" =~ ^[Yy]$ ]]; then
-        for container in "${containers[@]}"; do
-            if [ -n "$container" ]; then
-                install_container false "$container"
-            fi
-        done
+        install_container false $(curl -s "https://raw.githubusercontent.com/SaracenRhue/Shipyard/main/stacks/$stack_name.conf")
     fi
 }
 
