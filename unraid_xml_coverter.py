@@ -12,11 +12,15 @@ xml_files = os.listdir(xml_dir)
 
 for xml_file in xml_files:
     with open(f'{xml_dir}/{xml_file}', 'r') as f:
+        print(xml_file)
         try:
             soup = BeautifulSoup(f.read(), 'xml')
         except:
             print(f'Error parsing {xml_file}')
             continue
+    if soup.find('PluginAuthor'):
+        print('plugin xml')
+        continue
     name = soup.find('Name').text
     repo = soup.find('Repository').text
     parameters = soup.find_all('Config')
